@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时金银价格监控</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            transition: background 0.5s;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 600px;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #d4af37, #f3e5ab);
+            padding: 20px;
+            color: #5a4a11;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .header p {
+            margin: 5px 0 0;
+            opacity: 0.8;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 20px;
+        }
+
+        .section {
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            color: #333;
+            border-left: 4px solid #d4af37;
+            padding-left: 10px;
+            margin-bottom: 12px;
+            font-weight: bold;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .item {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .item .label {
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .item .value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .item .sub {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .spread {
+            margin-top: 10px;
+            padding: 10px;
+            background: #fff8e1;
+            border-radius: 6px;
+            text-align: center;
+            color: #b78a02;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 10px;
+            color: #ccc;
+            font-size: 12px;
+            border-top: 1px solid #eee;
+        }
+
+        .est-tag {
+            font-size: 12px;
+            color: #e67e22;
+            background: #fff3e0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            vertical-align: middle;
+        }
+
+        /* Trend Styles */
+        .trend-up {
+            color: #e74c3c;
+            font-size: 16px;
+        }
+
+        .trend-down {
+            color: #27ae60;
+            font-size: 16px;
+        }
+
+        .trend-flat {
+            color: #999;
+            font-size: 16px;
+            display: none;
+        }
+
+        /* Button */
+        button {
+            cursor: pointer;
+            border: none;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        .btn-toggle {
+            background: rgba(255, 255, 255, 0.9);
+            color: #5a4a11;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-top: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-toggle:hover {
+            background: white;
+            transform: scale(1.05);
+        }
+
+        .btn-stop {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-stop:hover {
+            background: #c0392b;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <div class="header">
+            <h1>实时金银价格监控</h1>
+            <p id="update-time">监控待机中</p>
+            <button id="toggle-btn" class="btn-toggle" onclick="toggleMonitoring()">开启获取数据</button>
+        </div>
+        <div class="content">
+            <!-- 汇率 -->
+            <div class="section">
+                <div class="section-title">基础数据</div>
+                <div class="grid">
+                    <div class="item">
+                        <div class="label">美元/人民币 汇率</div>
+                        <div class="value">
+                            <span id="val-usd-cny">--</span>
+                            <span id="trend-usd-cny" class="trend-flat"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 黄金 -->
+            <div class="section">
+                <div class="section-title">黄金 (Gold)</div>
+                <div class="grid">
+                    <div class="item">
+                        <div class="label">国际金价 (Spot USD)</div>
+                        <div class="value">
+                            <span id="val-intl-gold">--</span>
+                            <span id="trend-intl-gold" class="trend-flat"></span>
+                        </div>
+                        <div class="sub" id="sub-intl-gold">≈ --/g</div>
+                    </div>
+                    <div class="item">
+                        <div class="label" id="lbl-dom-gold">国内金价</div>
+                        <div class="value">
+                            <span id="val-dom-gold">--</span>
+                            <span id="trend-dom-gold" class="trend-flat"></span>
+                        </div>
+                        <div class="sub" id="sub-dom-gold">元/克</div>
+                    </div>
+                </div>
+                <div class="spread" id="spread-gold">
+                    请点击开启获取数据
+                </div>
+            </div>
+
+            <!-- 白银 -->
+            <div class="section">
+                <div class="section-title">白银 (Silver)</div>
+                <div class="grid">
+                    <div class="item">
+                        <div class="label">国际银价 (Spot USD)</div>
+                        <div class="value">
+                            <span id="val-intl-silver">--</span>
+                            <span id="trend-intl-silver" class="trend-flat"></span>
+                        </div>
+                        <div class="sub" id="sub-intl-silver">≈ --/g</div>
+                    </div>
+                    <div class="item">
+                        <div class="label" id="lbl-dom-silver">国内银价</div>
+                        <div class="value">
+                            <span id="val-dom-silver">--</span>
+                            <span id="trend-dom-silver" class="trend-flat"></span>
+                        </div>
+                        <div class="sub" id="sub-dom-silver">元/千克</div>
+                    </div>
+                </div>
+                <div class="spread" id="spread-silver">
+                    请点击开启获取数据
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            数据来源：新浪财经 • 手动开启 <select id="interval-select" onchange="changeInterval()"
+                style="margin-left: 5px; padding: 2px; border-radius: 4px; border: 1px solid #ccc; font-size: 12px; background: transparent; color: #888;">
+                <option value="5000">5s刷新</option>
+                <option value="15000">15s刷新</option>
+                <option value="30000" selected>30s刷新</option>
+                <option value="60000">60s刷新</option>
+            </select>
+        </div>
+
+        <!-- Calculator Section -->
+        <div style="margin-top: 20px; border-top: 1px dashed #eee; padding-top: 20px;">
+            <div class="section-title">盈亏平衡计算器</div>
+            <div class="grid" style="grid-template-columns: repeat(4, 1fr);">
+                <div class="item">
+                    <div class="label">买入均价 (元/克)</div>
+                    <input type="number" id="calc-price" placeholder="请输入"
+                        style="width: 80%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; text-align: center;"
+                        oninput="calculateBreakEven()">
+                </div>
+                <div class="item">
+                    <div class="label">手续费 (%)</div>
+                    <input type="number" id="calc-fee" placeholder="0.0" value="0.8" step="0.1"
+                        style="width: 80%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; text-align: center;"
+                        oninput="calculateBreakEven()">
+                </div>
+                <div class="item">
+                    <div class="label">买入克数 (g)</div>
+                    <input type="number" id="calc-qty" placeholder="0"
+                        style="width: 80%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; text-align: center;"
+                        oninput="calculateBreakEven()">
+                </div>
+                <div class="item" style="background: #fff8e1; border-color: #f3e5ab;">
+                    <div class="label" style="color: #b78a02;">盈亏平衡均价</div>
+                    <div class="value" id="calc-result" style="font-size: 18px;">--</div>
+                    <div class="sub" style="color: #b78a02;">元/克</div>
+                </div>
+            </div>
+            <div id="profit-display"
+                style="text-align: center; margin-top: 10px; font-size: 14px; color: #888; display: none;">
+                当前总盈亏: <span id="val-profit" style="font-weight: bold; font-size: 16px;">--</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let updateInterval = 30000; // 30 seconds
+
+        let timer = null;
+        let isRunning = false;
+        let lastValues = {};
+        let currentDomesticGold = 0;
+
+        // Load saved values
+        window.onload = function () {
+            if (localStorage.getItem('calc-price')) document.getElementById('calc-price').value = localStorage.getItem('calc-price');
+            if (localStorage.getItem('calc-fee')) document.getElementById('calc-fee').value = localStorage.getItem('calc-fee');
+            if (localStorage.getItem('calc-qty')) document.getElementById('calc-qty').value = localStorage.getItem('calc-qty');
+            calculateBreakEven();
+        }
+
+        function changeInterval() {
+            updateInterval = parseInt(document.getElementById('interval-select').value);
+            if (isRunning) {
+                clearInterval(timer);
+                timer = setInterval(fetchData, updateInterval);
+            }
+        }
+
+        function calculateBreakEven() {
+            const price = parseFloat(document.getElementById('calc-price').value);
+            const fee = parseFloat(document.getElementById('calc-fee').value);
+            const qty = parseFloat(document.getElementById('calc-qty').value);
+
+            // Save settings
+            localStorage.setItem('calc-price', document.getElementById('calc-price').value);
+            localStorage.setItem('calc-fee', document.getElementById('calc-fee').value);
+            localStorage.setItem('calc-qty', document.getElementById('calc-qty').value);
+
+            if (!isNaN(price) && !isNaN(fee) && fee < 100) {
+                const breakEven = price / (1 - (fee / 100));
+                document.getElementById('calc-result').innerText = breakEven.toFixed(2);
+                updateProfit(breakEven, qty);
+            } else {
+                document.getElementById('calc-result').innerText = '--';
+                document.getElementById('profit-display').style.display = 'none';
+            }
+        }
+
+        function updateProfit(breakEven, qty) {
+            if (!currentDomesticGold || !breakEven) return;
+
+            const diffPerGram = currentDomesticGold - breakEven;
+            let totalProfit = diffPerGram; // Default to per gram if no qty
+            let suffix = ' /克';
+
+            if (!isNaN(qty) && qty > 0) {
+                totalProfit = diffPerGram * qty;
+                suffix = ' (共 ' + qty + 'g)';
+            }
+
+            const el = document.getElementById('val-profit');
+            const container = document.getElementById('profit-display');
+
+            container.style.display = 'block';
+            let txt = '¥' + totalProfit.toFixed(2) + suffix;
+
+            if (totalProfit > 0) {
+                el.innerHTML = '<span class="trend-up">+' + txt + ' (盈利)</span>';
+            } else if (totalProfit < 0) {
+                el.innerHTML = '<span class="trend-down">' + txt + ' (亏损)</span>';
+            } else {
+                el.innerHTML = '持平';
+            }
+        }
+
+        function toggleMonitoring() {
+            const btn = document.getElementById('toggle-btn');
+            const statusEl = document.getElementById('update-time');
+
+            if (isRunning) {
+                // Stop
+                clearInterval(timer);
+                isRunning = false;
+                btn.innerText = '开启获取数据';
+                btn.className = 'btn-toggle';
+                statusEl.innerText = '监控已暂停';
+            } else {
+                // Start
+                fetchData();
+                timer = setInterval(fetchData, updateInterval);
+                isRunning = true;
+                btn.innerText = '停止获取数据';
+                btn.className = 'btn-toggle btn-stop';
+                statusEl.innerText = '正在请求数据...';
+            }
+        }
+
+        function fetchData() {
+            const statusEl = document.getElementById('update-time');
+            statusEl.innerText = '正在更新...';
+
+            // Fetch from local proxy
+            fetch('http://localhost:8083/api/gold')
+                .then(res => res.json())
+                .then(data => {
+                    if (data) {
+                        processData(data);
+                        if (isRunning) statusEl.innerText = '更新时间：' + new Date().toLocaleTimeString();
+                    } else {
+                        throw new Error('Empty data');
+                    }
+                })
+                .catch(err => {
+                    console.error('Fetch failed', err);
+                    statusEl.innerText = '获取失败，请确认服务运行中';
+                });
+        }
+
+        function processData(data) {
+            // Data is already parsed by server!
+            // data format: { usd_cny, intl_gold_usd_oz, domestic_gold_cny_g, ... }
+
+            currentDomesticGold = data.domestic_gold_cny_g;
+
+            // UI Actions
+            updateField('val-usd-cny', 'trend-usd-cny', data.usd_cny, data.usd_cny.toFixed(4));
+
+            updateField('val-intl-gold', 'trend-intl-gold', data.intl_gold_usd_oz, '$' + data.intl_gold_usd_oz.toFixed(2));
+            document.getElementById('sub-intl-gold').innerText = '≈ ¥' + data.intl_gold_cny_g.toFixed(2) + '/g';
+
+            updateField('val-dom-gold', 'trend-dom-gold', data.domestic_gold_cny_g, '¥' + data.domestic_gold_cny_g.toFixed(2));
+            document.getElementById('lbl-dom-gold').innerHTML = '国内金价 ' + (data.is_gold_est ? '<span class="est-tag">理论值</span>' : '(上海金)');
+            document.getElementById('sub-dom-gold').innerText = '元/克 ' + (data.is_gold_est ? '(无T+D报价)' : '');
+
+            updateField('val-intl-silver', 'trend-intl-silver', data.intl_silver_usd_oz, '$' + data.intl_silver_usd_oz.toFixed(2));
+            document.getElementById('sub-intl-silver').innerText = '≈ ¥' + data.intl_silver_cny_g.toFixed(2) + '/g';
+
+            updateField('val-dom-silver', 'trend-dom-silver', data.domestic_silver_cny_kg, '¥' + data.domestic_silver_cny_kg.toFixed(0));
+            document.getElementById('lbl-dom-silver').innerHTML = '国内银价 ' + (data.is_silver_est ? '<span class="est-tag">理论值</span>' : '(上海银)');
+            document.getElementById('sub-dom-silver').innerText = '元/千克 (≈ ¥' + data.domestic_silver_cny_g.toFixed(2) + '/g)';
+
+            // Spreads
+            if (!data.is_gold_est) {
+                const spread = data.domestic_gold_cny_g - data.intl_gold_cny_g;
+                document.getElementById('spread-gold').innerText = '内外盘价差：¥' + spread.toFixed(2) + ' /g';
+            } else { document.getElementById('spread-gold').innerText = '当前无内盘实时报价'; }
+
+            if (!data.is_silver_est) {
+                const spread = data.domestic_silver_cny_g - data.intl_silver_cny_g;
+                document.getElementById('spread-silver').innerText = '内外盘价差：¥' + spread.toFixed(2) + ' /g';
+            } else { document.getElementById('spread-silver').innerText = '无内盘报价'; }
+
+            // Recalculate profit if calculator is active
+            calculateBreakEven();
+        }
+
+        function updateField(valId, trendId, numVal, textVal) {
+            const valEl = document.getElementById(valId);
+            const trendEl = document.getElementById(trendId);
+
+            // Compare with last value
+            if (lastValues[valId] !== undefined) {
+                const prev = lastValues[valId];
+                if (numVal > prev) {
+                    trendEl.innerText = '↑';
+                    trendEl.className = 'trend-up';
+                    trendEl.style.display = 'inline';
+                } else if (numVal < prev) {
+                    trendEl.innerText = '↓';
+                    trendEl.className = 'trend-down';
+                    trendEl.style.display = 'inline';
+                } else {
+                    // No change
+                    // trendEl.innerText = '-';
+                    // trendEl.className = 'trend-flat';
+                }
+            } else {
+                // First run, no trend
+                trendEl.style.display = 'none';
+            }
+
+            lastValues[valId] = numVal;
+            valEl.innerText = textVal;
+        }
+    </script>
+</body>
+
+</html>
